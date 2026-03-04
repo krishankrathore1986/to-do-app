@@ -92,6 +92,29 @@ h1 {
   background: #f3f2ff;
 }
 
+/* Status bar */
+.status {
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.status.hidden {
+  display: none;
+}
+
+.status.connecting {
+  background: #fff8e1;
+  color: #f57c00;
+}
+
+.status.error {
+  background: #fdecea;
+  color: #c0392b;
+}
+
 /* Task list */
 #taskList {
   list-style: none;

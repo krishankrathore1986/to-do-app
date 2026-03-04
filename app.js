@@ -1,5 +1,20 @@
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyD_502S2YklL5R5tn6n6MT0TSnrIwfSCh8",
+  authDomain: "todo-98be5.firebaseapp.com",
+  projectId: "todo-98be5",
+  storageBucket: "todo-98be5.firebasestorage.app",
+  messagingSenderId: "416960374282",
+  appId: "1:416960374282:web:e3d156eb5182e6b838a1f3",
+  measurementId: "G-S8LC0KQ9Q2"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const tasksCol = db.collection('tasks');
+
 // State
-let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+let tasks = [];
 let currentFilter = 'all';
 let editingId = null;
 
@@ -14,18 +29,19 @@ const editModal = document.getElementById('editModal');
 const editInput = document.getElementById('editInput');
 const saveEdit = document.getElementById('saveEdit');
 const cancelEdit = document.getElementById('cancelEdit');
+const statusEl = document.getElementById('status');
 
-// Save to localStorage
-function save() {
-  localStorage.setItem('tasks', JSON.stringify(tasks));
+// Show connection status
+function setStatus(msg, type) {
+  if (!msg) {
+    statusEl.classList.add('hidden');
+    return;
+  }
+  statusEl.textContent = msg;
+  statusEl.className = 'status ' + (type || '');
 }
 
-// Generate unique ID
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
-
-// Render task list
+// Render task list from local state
 function render() {
   const filtered = tasks.filter(t => {
     if (currentFilter === 'active') return !t.completed;
@@ -56,7 +72,6 @@ function render() {
     });
   }
 
-  // Update count (active tasks)
   const active = tasks.filter(t => !t.completed).length;
   taskCount.textContent = `${active} task${active !== 1 ? 's' : ''} left`;
 }
@@ -71,31 +86,29 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// Add task
+// Add task to Firestore
 function addTask() {
   const text = taskInput.value.trim();
   if (!text) return;
-  tasks.push({ id: uid(), text, completed: false });
   taskInput.value = '';
-  save();
-  render();
+  tasksCol.add({
+    text,
+    completed: false,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 }
 
-// Toggle complete
+// Toggle complete in Firestore
 function toggleTask(id) {
   const task = tasks.find(t => t.id === id);
   if (task) {
-    task.completed = !task.completed;
-    save();
-    render();
+    tasksCol.doc(id).update({ completed: !task.completed });
   }
 }
 
-// Delete task
+// Delete task from Firestore
 function deleteTask(id) {
-  tasks = tasks.filter(t => t.id !== id);
-  save();
-  render();
+  tasksCol.doc(id).delete();
 }
 
 // Open edit modal
@@ -108,16 +121,11 @@ function openEdit(id) {
   editInput.focus();
 }
 
-// Save edit
+// Save edit to Firestore
 function saveEditTask() {
   const text = editInput.value.trim();
   if (!text) return;
-  const task = tasks.find(t => t.id === editingId);
-  if (task) {
-    task.text = text;
-    save();
-    render();
-  }
+  tasksCol.doc(editingId).update({ text });
   closeModal();
 }
 
@@ -125,6 +133,21 @@ function closeModal() {
   editModal.classList.add('hidden');
   editingId = null;
 }
+
+// Real-time listener — updates all connected users instantly
+setStatus('Connecting...', 'connecting');
+
+tasksCol.orderBy('createdAt').onSnapshot(
+  snapshot => {
+    tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    render();
+    setStatus(null);
+  },
+  err => {
+    console.error(err);
+    setStatus('Connection error. Please refresh.', 'error');
+  }
+);
 
 // Event: Add button / Enter key
 addBtn.addEventListener('click', addTask);
@@ -155,9 +178,9 @@ filterBtns.forEach(btn => {
 
 // Event: Clear completed
 clearCompleted.addEventListener('click', () => {
-  tasks = tasks.filter(t => !t.completed);
-  save();
-  render();
+  const batch = db.batch();
+  tasks.filter(t => t.completed).forEach(t => batch.delete(tasksCol.doc(t.id)));
+  batch.commit();
 });
 
 // Event: Modal save/cancel
@@ -170,6 +193,3 @@ editInput.addEventListener('keydown', e => {
 editModal.addEventListener('click', e => {
   if (e.target === editModal) closeModal();
 });
-
-// Initial render
-render();

@@ -21,6 +21,8 @@
       <button class="filter-btn" data-filter="completed">Completed</button>
     </div>
 
+    <div id="status" class="status hidden">Connecting...</div>
+
     <ul id="taskList"></ul>
 
     <div class="footer">
@@ -41,6 +43,9 @@
     </div>
   </div>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
